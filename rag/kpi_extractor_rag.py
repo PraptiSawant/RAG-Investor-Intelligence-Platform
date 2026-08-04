@@ -4,8 +4,9 @@ from types import SimpleNamespace
 from dotenv import load_dotenv
 from pydantic import BaseModel, field_validator, Field
 
-from llm.azure_openai import get_structured_completion
-from vectorstore.azure_ai_search import AzureAISearchVectorStore
+from langchain_pinecone import PineconeVectorStore
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
 
 load_dotenv()
 
@@ -22,51 +23,33 @@ class FinancialMetrics(BaseModel):
 
 
 class Retriever:
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, vector_store: PineconeVectorStore):
+        self.vector_store = vector_store
 
     def invoke(
         self,
         query: str,
         company: str | None = None,
         year: int | None = None,
-        top_k: int = 20
+        top_k: int = 3
     ) -> list:
         """
         Retrieve relevant chunks from Azure AI Search.
         """
-        filter_expr = None
+        filter_dict = {}
 
-        if company and year:
-            filter_expr = (
-                f"company eq '{company}' "
-                f"and year eq '{year}'"
-            )
+        if company:
+            filter_dict["company"] = company
+        if year:
+            filter_dict["year"] = year
 
-        results = (
-            self.client.search(
-                search_text=query,
-                top=top_k,
-                filter=filter_expr
-            )
-            if filter_expr
-            else self.client.search(
-                search_text=query,
-                top=top_k
-            )
+        results = self.vector_store.similarity_search(
+            query,
+            k=top_k,
+            filter=filter_dict if filter_dict else None
         )
 
-        documents = []
-
-        for result in results:
-            content = result.get("content", "")
-            documents.append(
-                SimpleNamespace(
-                    page_content=content
-                )
-            )
-
-        return documents
+        return results
 
 
 def retrieve_context(
@@ -92,7 +75,7 @@ def retrieve_context(
         query=query,
         company=company,
         year=year,
-        top_k=20
+        top_k=3
     )
     # print(documents)
     return "\n\n".join(
@@ -160,10 +143,16 @@ def extract_financial_metrics(
         context=context
     )
 
-    metrics = get_structured_completion(
-        prompt=prompt,
-        response_model=FinancialMetrics
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        temperature=0,
+        groq_api_key=os.getenv("GROQ_API_KEY")
     )
+
+    # Force the model to format its response exactly to your Pydantic schema
+    structured_llm = llm.with_structured_output(FinancialMetrics)
+    metrics = structured_llm.invoke(prompt)
+
 
     return metrics.model_dump()
 
@@ -172,15 +161,20 @@ def main() -> None:
     company = "Apple"
     year = 2024
 
-    vector_store = AzureAISearchVectorStore(
-        endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
-        api_key=os.getenv("AZURE_SEARCH_API_KEY"),
-        index_name=os.getenv("AZURE_SEARCH_INDEX_NAME")
+
+    # FIX 3: Initialize your cloud embedding helper
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
     )
 
-    retriever = Retriever(
-        vector_store.client
+    # FIX 4: Connect to your free Pinecone Index
+    vector_store = PineconeVectorStore(
+        index_name=os.getenv("PINECONE_INDEX_NAME"),
+        embedding=embeddings,
+        pinecone_api_key=os.getenv("PINECONE_API_KEY")
     )
+
+    retriever = Retriever(vector_store=vector_store)
 
     results = extract_financial_metrics(
         retriever=retriever,

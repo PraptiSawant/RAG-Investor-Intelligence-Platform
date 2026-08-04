@@ -2,14 +2,13 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_openai import AzureOpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from ingestion.pdf_to_markdown import PDFToMarkdownConverter
 from ingestion.semantic_chunker import chunk_markdown
-from vectorstore.azure_ai_search import AzureAISearchVectorStore
-from rag.kpi_extractor_rag import extract_financial_metrics
+from rag.kpi_extractor_rag import extract_financial_metrics, Retriever
 from database.save_metrics import save_metrics
-from vectorstore.azure_ai_search import Retriever
+from langchain_pinecone import PineconeVectorStore
 
 load_dotenv()
 
@@ -62,41 +61,42 @@ def ingest_document(
 
     print(f"Generated {len(chunks)} chunks for {pdf_file.name}")
 
-    vector_store.upload_chunks(
-        chunks=chunks, 
-        embeddings=embeddings,
-        company=company,
-        year=year,
-        source_file=pdf_file.name
-    )
+
+    cleaned_year = int(year) if year.isdigit() else None
+    for chunk in chunks:
+        chunk.metadata.update({
+            "company": company,
+            "year": cleaned_year,
+            "source_file": pdf_file.name
+        })
+
+    vector_store.add_documents(documents=chunks)
+    print(f"Successfully uploaded chunks to Pinecone for {pdf_file.name}!")
 
     # Extract financial metrics using the newly ingested data
     metrics = extract_financial_metrics(
-        retriever=Retriever(vector_store.client),
+        retriever=Retriever(vector_store=vector_store),
         company=company,
-        year=int(year) if year.isdigit() else None
+        year=cleaned_year
     )
 
     # Persist metrics to PostgreSQL
     if metrics:
-        save_metrics(company=company, year=int(year) if str(year).isdigit() else None, metrics=metrics)
+        save_metrics(company=company, year=cleaned_year, metrics=metrics)
 
 
 def ingest_directory(input_dir: str) -> None:
     """
     Ingest all PDFs from a directory.
     """
-    embeddings = AzureOpenAIEmbeddings(
-        model=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
     )
 
-    vector_store = AzureAISearchVectorStore(
-        endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
-        api_key=os.getenv("AZURE_SEARCH_API_KEY"),
-        index_name=os.getenv("AZURE_SEARCH_INDEX_NAME")
+    vector_store = PineconeVectorStore(
+        pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+        embedding=embeddings,
+        index_name=os.getenv("PINECONE_INDEX_NAME")
     )
 
     pdf_files = list(Path(input_dir).glob("*.pdf"))
