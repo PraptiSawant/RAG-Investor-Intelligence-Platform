@@ -6,7 +6,8 @@ from pydantic import BaseModel, field_validator, Field
 
 from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 
 load_dotenv()
 
@@ -31,7 +32,7 @@ class Retriever:
         query: str,
         company: str | None = None,
         year: int | None = None,
-        top_k: int = 3
+        top_k: int = 20
     ) -> list:
         """
         Retrieve relevant chunks from Azure AI Search.
@@ -75,7 +76,7 @@ def retrieve_context(
         query=query,
         company=company,
         year=year,
-        top_k=3
+        top_k=20
     )
     # print(documents)
     return "\n\n".join(
@@ -143,10 +144,10 @@ def extract_financial_metrics(
         context=context
     )
 
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.5-flash",
         temperature=0,
-        groq_api_key=os.getenv("GROQ_API_KEY")
+        google_api_key=os.getenv("GEMINI_API_KEY")
     )
 
     # Force the model to format its response exactly to your Pydantic schema
@@ -190,13 +191,13 @@ def main() -> None:
         print("-" * 80)
 
 
-    from database.save_metrics import save_metrics
+    # from database.save_metrics import save_metrics
 
-    save_metrics(
-        company=company,
-        year=year,
-        metrics=results
-    )
+    # save_metrics(
+    #     company=company,
+    #     year=year,
+    #     metrics=results
+    # )
 
 if __name__ == "__main__":
     main()
