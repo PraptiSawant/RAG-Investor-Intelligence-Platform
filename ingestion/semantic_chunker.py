@@ -45,10 +45,10 @@ def chunk_markdown(
     return splitter.create_documents([markdown_content])
 
 if __name__ == "__main__":
-    from langchain_ollama import OllamaEmbeddings
+    from langchain_huggingface import HuggingFaceEmbeddings
 
-    embeddings = OllamaEmbeddings(
-        model="nomic-embed-text"
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
     )
 
     markdown_file = "../data/markdown/2024_Apple.md"
