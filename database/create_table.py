@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from database.postgres_sql import get_engine, create_database
+from database.postgres_sql import get_engine
 
 
 def create_tables() -> None:
