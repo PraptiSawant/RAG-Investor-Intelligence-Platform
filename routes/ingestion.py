@@ -2,9 +2,10 @@ import shutil
 from fastapi import APIRouter, File, UploadFile
 from pathlib import Path
 import os
-from langchain_openai import AzureOpenAIEmbeddings
-from vectorstore.azure_ai_search import AzureAISearchVectorStore
+
+from langchain_pinecone import PineconeVectorStore
 from ingestion.ingest_documents import ingest_document
+from langchain_huggingface import HuggingFaceEmbeddings
 
 router = APIRouter()
 
@@ -28,17 +29,14 @@ async def upload_document(
         )
 
         # Initialize embeddings and vector store
-        embeddings = AzureOpenAIEmbeddings(
-            model=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+        embeddings = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2"
         )
 
-        vector_store = AzureAISearchVectorStore(
-            endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
-            api_key=os.getenv("AZURE_SEARCH_API_KEY"),
-            index_name=os.getenv("AZURE_SEARCH_INDEX_NAME")
+        vector_store = PineconeVectorStore(
+            index_name=os.getenv("PINECONE_INDEX_NAME"),
+            embedding=embeddings,
+            pinecone_api_key=os.getenv("PINECONE_API_KEY")
         )
 
         ingest_document(
