@@ -14,7 +14,7 @@ RUN uv pip install --system -r requirements.txt
 COPY . /app
 
 # Expose the port the app will run on
-EXPOSE 8000
+EXPOSE 10000
 
 # Use uvicorn to run the FastAPI app defined in app.py
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
