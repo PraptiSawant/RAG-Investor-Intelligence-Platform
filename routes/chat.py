@@ -1,11 +1,16 @@
 import os
 from fastapi import APIRouter, HTTPException
+from google import genai
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
 from pydantic import BaseModel
 
-from vectorstore.azure_ai_search import AzureAISearchVectorStore, Retriever
-from llm.azure_openai import get_openai_client
+from rag.kpi_extractor_rag import Retriever
 
 router = APIRouter()
+
+gemini_client = genai.Client()
 
 class ChatRequest(BaseModel):
     question: str
@@ -15,13 +20,19 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat(request: ChatRequest):
     try:
-        # Initialize vector store and retriever
-        vector_store = AzureAISearchVectorStore(
-            endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
-            api_key=os.getenv("AZURE_SEARCH_API_KEY"),
-            index_name=os.getenv("AZURE_SEARCH_INDEX_NAME")
+
+        embeddings = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2"
         )
-        retriever = Retriever(vector_store.client)
+
+        # Initialize vector store and retriever
+        vector_store = PineconeVectorStore(
+            index_name=os.getenv("PINECONE_INDEX_NAME"),
+            embedding=embeddings,
+            pinecone_api_key=os.getenv("PINECONE_API_KEY")
+        )
+
+        retriever = Retriever(vector_store=vector_store)
 
         # Retrieve relevant context
         context = ""
@@ -40,12 +51,12 @@ async def chat(request: ChatRequest):
         # Build chat prompt – include retrieved context and the user question
         prompt = f"You are an expert financial analyst. Use the following context from corporate reports to answer the user's question. If the context does not contain relevant information, politely indicate that you do not have enough data.\n\nContext:\n{context}\n\nUser Question: {request.question}\n\nAnswer:"
 
-        client = get_openai_client()
-        response = client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT"),
-            messages=[{"role": "user", "content": prompt}]
+        response = gemini_client.models.generate_content(
+            model="gemini-3.5-flash",
+            contents=prompt
         )
-        answer = response.choices[0].message.content
+
+        answer = response.text
         return {"answer": answer}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
