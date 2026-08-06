@@ -1,12 +1,14 @@
 # AI-Powered Investor Intelligence Platform
 
+Live Project Link : https://rag-investor-intelligence-platform.onrender.com
+
 <img width="1906" height="945" alt="RAGproject" src="https://github.com/user-attachments/assets/5024af81-e07e-47ed-a4ab-a40c439522f2" />
 
-This repository contains the Python backend for an AI-powered Investor Intelligence Platform, including document ingestion, semantic search, KPI extraction, Azure AI Search integration, Azure OpenAI integration, and PostgreSQL-based KPI storage.
+This repository contains the Python backend for an AI-powered Investor Intelligence Platform, including document ingestion, semantic search, KPI extraction, Pinecone Vector DB integration, Google Gemini integration, and PostgreSQL-based KPI storage.
 
 ## Prerequisites
 
-* Python 3.12+
+* Python 3.13
 * UV Package Manager
 
 ## Setup
@@ -82,13 +84,15 @@ python app.py
 ## Project Features
 
 * Annual Report Upload & Processing
-* KPI Extraction using Azure OpenAI
-* Azure AI Search Integration
+* KPI Extraction using Hugging Face 
+* Pinecone VectorDB Integration
 * Semantic Search & Retrieval
 * RAG-based Chatbot
 * PostgreSQL KPI Storage
 * Investor Insights Dashboard
 * Production-Grade Modular Architecture
+* CI/CD Github Actions
+
 
 ---
 
@@ -101,28 +105,22 @@ python app.py
 
 ### AI Services
 
-* Azure OpenAI
-* Azure AI Search
+* Google GEMINI
+* Hugging Face Embedding
 
 ### Database
 
-* Azure PostgreSQL
+* Neon Serverless PostgreSQL
 
 ### Deployment
 
 * Docker
-* Azure Container Registry (ACR)
-* Azure Kubernetes Service (AKS)
+* Render 
+* Github Actions 
+
 
 ### Package Management
 
 * UV
 
 ---
-
-## Notes
-
-* Ensure all Azure resources are configured before running the application.
-* Verify that PostgreSQL firewall rules allow access from the application.
-* Store secrets in environment variables and never commit `.env` files to source control.
-* For production deployments, use Azure Key Vault or Kubernetes Secrets for secret management.
