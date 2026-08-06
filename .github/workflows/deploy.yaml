@@ -1,83 +1,50 @@
-name: Build and Deploy to AKS
+name: Production CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger the pipeline automatically whenever you push code to main
 
 jobs:
-
-  build-and-deploy:
-
+  continuous-integration:
+    name: Code Verification (CI)
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout Repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - name: Set up Python 3.13 Runtime
+        uses: actions/setup-python@v5
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          python-version: '3.13'
 
-      - name: Login to ACR
-        run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
+      - name: Cache Pip Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
-      - name: Docker Login to ACR
+      - name: Install Dependencies
         run: |
-          docker login ${{ secrets.ACR_LOGIN_SERVER }} \
-            -u ${{ secrets.ACR_USERNAME }} \
-            -p ${{ secrets.ACR_PASSWORD }}
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Build Docker Image
+      - name: Code Syntax Lint Check (Flake8)
         run: |
-          docker build \
-            -t ${{ secrets.ACR_LOGIN_SERVER }}/invint:latest .
+          pip install flake8
+          # Stop the build if there are critical Python syntax errors
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Push Docker Image
-        run: |
-          docker push \
-            ${{ secrets.ACR_LOGIN_SERVER }}/invint:latest
+  continuous-deployment:
+    name: Cloud Server Deployment (CD)
+    needs: continuous-integration  # Only deploy if the CI verification steps pass perfectly!
+    runs-on: ubuntu-latest
 
-      - name: Get AKS Credentials
-        run: |
-          az aks get-credentials \
-            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
-            --name ${{ secrets.AKS_CLUSTER_NAME }} \
-            --overwrite-existing
-            
-      - name: Create Kubernetes Secrets
-        run: |
-          kubectl create secret generic invint-secrets \
-            --from-literal=AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
-            --from-literal=AZURE_OPENAI_CHAT_ENDPOINT="${{ secrets.AZURE_OPENAI_CHAT_ENDPOINT }}" \
-            --from-literal=AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" \
-            --from-literal=AZURE_OPENAI_API_EMBEDDING_VERSION="${{ secrets.AZURE_OPENAI_API_EMBEDDING_VERSION }}" \
-            --from-literal=AZURE_OPENAI_API_VERSION="${{ secrets.AZURE_OPENAI_API_VERSION }}" \
-            --from-literal=AZURE_SEARCH_ENDPOINT="${{ secrets.AZURE_SEARCH_ENDPOINT }}" \
-            --from-literal=AZURE_SEARCH_API_KEY="${{ secrets.AZURE_SEARCH_API_KEY }}" \
-            --from-literal=AZURE_SEARCH_INDEX_NAME="${{ secrets.AZURE_SEARCH_INDEX_NAME }}" \
-            --from-literal=AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${{ secrets.AZURE_OPENAI_EMBEDDING_DEPLOYMENT }}" \
-            --from-literal=AZURE_OPENAI_CHAT_DEPLOYMENT="${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT }}" \
-            --from-literal=POSTGRES_HOST="${{ secrets.POSTGRES_HOST }}" \
-            --from-literal=POSTGRES_PORT="${{ secrets.POSTGRES_PORT }}" \
-            --from-literal=POSTGRES_DATABASE="${{ secrets.POSTGRES_DATABASE }}" \
-            --from-literal=POSTGRES_USER="${{ secrets.POSTGRES_USER }}" \
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy Application
-        run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
-      - name: Restart Deployment
-        run: |
-          kubectl rollout restart deployment/invint
-
-      - name: Verify Rollout
-        run: |
-          kubectl rollout status deployment/invint
-
+    steps:
+      - name: Trigger Render Container Rebuild
+        # This official action securely triggers Render to build your Dockerfile
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
