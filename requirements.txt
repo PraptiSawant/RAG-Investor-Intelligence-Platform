@@ -62,3 +62,4 @@ python-multipart==0.0.32
 langchain-pinecone==0.2.13
 pinecone==7.3.0
 langchain-huggingface==1.2.2
+langchain-google-genai==4.3.2
