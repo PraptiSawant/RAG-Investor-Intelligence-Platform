@@ -2,7 +2,7 @@
 
 Live Project Link : https://rag-investor-intelligence-platform.onrender.com
 
-<img width="1906" height="945" alt="RAGproject" src="https://github.com/user-attachments/assets/5024af81-e07e-47ed-a4ab-a40c439522f2" />
+<img width="951" height="427" alt="RAGproject" src="https://github.com/user-attachments/assets/56c494c2-9ac6-494a-95be-f12a211e7f20" />
 
 This repository contains the Python backend for an AI-powered Investor Intelligence Platform, including document ingestion, semantic search, KPI extraction, Pinecone Vector DB integration, Google Gemini integration, and PostgreSQL-based KPI storage.
 
