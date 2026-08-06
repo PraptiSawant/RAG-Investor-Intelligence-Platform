@@ -29,7 +29,7 @@ def startup_event():
     except Exception as db_err:
         print(f"DATABASE INITIALIZATION FAILED: {db_err}")
         print("Continuing boot sequence to allow dashboard debugging...")
-            
+
     try:
         create_index()
     except Exception as e:
@@ -99,5 +99,5 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000
+        port=10000
     )
