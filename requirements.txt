@@ -22,3 +22,8 @@ langchain-pinecone==0.2.13
 pinecone==7.3.0
 langchain-huggingface==1.2.2
 langchain-google-genai==4.3.2
+sentence-transformers==5.6.1
+safetensors==0.8.0
+tokenizers==0.13.0
+torch==2.13.0
+transformers==5.14.1
